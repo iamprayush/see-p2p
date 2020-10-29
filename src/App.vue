@@ -17,9 +17,18 @@
           Remove Nodes
         </v-btn>
       </v-container>
-      <v-container id="simulation-container">
-        <svg></svg>
-      </v-container>
+      <v-row>
+        <v-col cols="10">
+          <v-container id="simulation-container" pa-0>
+            <svg ma-0></svg>
+          </v-container>
+        </v-col>
+        <v-col>
+          <v-card id="node-info-card">
+            <h3>NODE INFO</h3>
+          </v-card>
+        </v-col>
+      </v-row>
     </v-container>
   </v-app>
 </template>
@@ -44,15 +53,15 @@ export default {
       }
     },
     simulate: function () {
-      const WIDTH = $(document).width() * 0.85,
-        HEIGHT = $(document).height() * 0.75;
+      const WIDTH = $(document).width() * 0.7,
+        HEIGHT = $(document).height() * 0.7;
 
       const NODE_RADIUS = 15;
 
       const BOOT_NODE_COLOR = "greenyellow",
         PEER_NODE_COLOR = "cornflowerblue";
 
-      const LOWLIGHT_OPACITY = 0.75;
+      const LOWLIGHT_OPACITY = 0.55;
 
       let nodes = [{ id: 0, isBootNode: true, x: WIDTH / 2, y: HEIGHT / 2 }];
       let links = [];
@@ -143,11 +152,20 @@ export default {
               )
               .attr("opacity", LOWLIGHT_OPACITY)
           )
-          .on("mouseenter", function () {
+          .on("mouseenter", function (_, node) {
             d3.select(this).attr("opacity", 1);
+            if (!mouseClicked) {
+              d3.select("#node-info-card").append("p").text(`ID: ${node.id}`);
+              d3.select("#node-info-card")
+                .append("p")
+                .text(`Type: ${node.isBootNode ? "Boot Node" : "Peer Node"}`);
+            }
           })
           .on("mouseout", function () {
             d3.select(this).attr("opacity", LOWLIGHT_OPACITY);
+            if (!mouseClicked) {
+              d3.selectAll("#node-info-card p").remove();
+            }
           });
 
         link = link.data(links, (d) => [d.source, d.target]).join("line");
@@ -172,5 +190,10 @@ export default {
 <style>
 #main-container {
   text-align: center;
+}
+#node-info-card {
+  border: 2px solid lightgray;
+  text-align: center;
+  height: 30%;
 }
 </style>
