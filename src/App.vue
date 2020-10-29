@@ -36,6 +36,7 @@
 <script>
 import * as d3 from "d3";
 import $ from "jquery";
+import faker from "faker";
 
 export default {
   name: "App",
@@ -63,7 +64,14 @@ export default {
 
       const LOWLIGHT_OPACITY = 0.55;
 
-      let nodes = [{ id: 0, isBootNode: true, x: WIDTH / 2, y: HEIGHT / 2 }];
+      let nodes = [
+        {
+          ip: faker.internet.ip(),
+          isBootNode: true,
+          x: WIDTH / 2,
+          y: HEIGHT / 2,
+        },
+      ];
       let links = [];
 
       let checkAddButton = () => this.addButtonEnabled;
@@ -74,7 +82,7 @@ export default {
       let addNode = function (event) {
         if (mouseClicked && checkAddButton()) {
           nodes.push({
-            id: nodes[nodes.length - 1].id + 1,
+            ip: faker.internet.ip(),
             x: d3.pointer(event)[0],
             y: d3.pointer(event)[1],
             isBootNode: false,
@@ -136,13 +144,13 @@ export default {
         .force("collide", d3.forceCollide(NODE_RADIUS * 2))
         .force(
           "link",
-          d3.forceLink().id((d) => d.id)
+          d3.forceLink().id((d) => d.ip)
         )
         .on("tick", ticked);
 
       let update = function ({ nodes, links }) {
         node = node
-          .data(nodes, (d) => d.id)
+          .data(nodes, (d) => d.ip)
           .join((enter) =>
             enter
               .append("circle")
@@ -155,7 +163,7 @@ export default {
           .on("mouseenter", function (_, node) {
             d3.select(this).attr("opacity", 1);
             if (!mouseClicked) {
-              d3.select("#node-info-card").append("p").text(`ID: ${node.id}`);
+              d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
               d3.select("#node-info-card")
                 .append("p")
                 .text(`Type: ${node.isBootNode ? "Boot Node" : "Peer Node"}`);
