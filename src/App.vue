@@ -46,6 +46,12 @@ export default {
   mounted: function () {
     this.simulate();
   },
+  data: function () {
+    return {
+      addButtonEnabled: true,
+      removeButtonEnabled: false,
+    };
+  },
   methods: {
     toggleButton: function (buttonName) {
       if (buttonName === "addButton") {
@@ -57,37 +63,37 @@ export default {
       }
     },
     simulate: function () {
-      let nodes = [
-        {
-          ip: faker.internet.ip(),
-          isBootNode: true,
-          x: Constants.WIDTH / 2,
-          y: Constants.HEIGHT / 2,
-        },
-      ];
-      let links = [];
-
-      let checkAddButton = () => this.addButtonEnabled;
-      let checkRemoveButton = () => this.removeButtonEnabled;
-
+      let self = this;
       let mouseClicked = false;
 
+      // Inititializing with a single boot node.
+      let nodesArray = [
+          {
+            ip: faker.internet.ip(),
+            isBootNode: true,
+            x: Constants.WIDTH / 2,
+            y: Constants.HEIGHT / 2,
+          },
+        ],
+        linksArray = [];
+
+      // Functions to add or remove nodes.
       let addNode = function (event) {
-        if (mouseClicked && checkAddButton()) {
-          nodes.push({
+        if (mouseClicked && self.addButtonEnabled) {
+          nodesArray.push({
             ip: faker.internet.ip(),
             x: d3.pointer(event)[0],
             y: d3.pointer(event)[1],
             isBootNode: false,
           });
 
-          update({ nodes, links });
+          update({ nodesArray, linksArray });
         }
       };
 
       let removeNodes = function (event) {
-        if (mouseClicked && checkRemoveButton()) {
-          nodes = nodes.filter(function (n) {
+        if (mouseClicked && self.removeButtonEnabled) {
+          nodesArray = nodesArray.filter((n) => {
             let x1 = d3.pointer(event)[0],
               y1 = d3.pointer(event)[1],
               x2 = n.x,
@@ -98,38 +104,28 @@ export default {
             return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
           });
 
-          update({ nodes, links });
+          update({ nodesArray, linksArray });
         }
       };
 
-      let svg = d3
-        .select("svg")
-        .attr("width", Constants.WIDTH)
-        .attr("height", Constants.HEIGHT)
-        .style("border", "1px solid black")
-        .on("mousemove", removeNodes)
-        .on("mousedown", (event) => {
-          mouseClicked = true;
-          addNode(event);
-        })
-        .on("mouseup", () => {
-          mouseClicked = false;
-        });
+      // DOM Elements.
+      let svgElement = d3
+          .select("svg")
+          .attr("width", Constants.WIDTH)
+          .attr("height", Constants.HEIGHT)
+          .style("border", "1px solid black")
+          .on("mousemove", removeNodes)
+          .on("mousedown", (event) => {
+            mouseClicked = true;
+            addNode(event);
+          })
+          .on("mouseup", () => {
+            mouseClicked = false;
+          }),
+        linkElements = svgElement.append("g").selectAll("line"),
+        nodeElements = svgElement.append("g").selectAll("circle");
 
-      let link = svg.append("g").selectAll("line");
-
-      let node = svg.append("g").selectAll("circle");
-
-      let ticked = function () {
-        node.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
-
-        link
-          .attr("x1", (d) => d.source.x)
-          .attr("y1", (d) => d.source.y)
-          .attr("x2", (d) => d.target.x)
-          .attr("y2", (d) => d.target.y);
-      };
-
+      // D3 Force simulation initialization.
       const simulation = d3
         .forceSimulation()
         .force("x", d3.forceX(Constants.WIDTH / 2))
@@ -139,11 +135,19 @@ export default {
           "link",
           d3.forceLink().id((d) => d.ip)
         )
-        .on("tick", ticked);
+        .on("tick", () => {
+          nodeElements.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
+          linkElements
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+        });
 
-      let update = function ({ nodes, links }) {
-        node = node
-          .data(nodes, (d) => d.ip)
+      let update = function ({ nodesArray, linksArray }) {
+        // Updating the nodes.
+        nodeElements = nodeElements
+          .data(nodesArray, (d) => d.ip)
           .join((enter) =>
             enter
               .append("circle")
@@ -171,21 +175,19 @@ export default {
             }
           });
 
-        link = link.data(links, (d) => [d.source, d.target]).join("line");
+        // Updating the links.
+        linkElements = linkElements
+          .data(linksArray, (d) => [d.source, d.target])
+          .join("line");
 
-        simulation.nodes(nodes);
-        simulation.force("link").links(links);
+        // Updating the force simulation.
+        simulation.nodes(nodesArray);
+        simulation.force("link").links(linksArray);
         simulation.alpha(0.15).restart();
       };
 
-      update({ nodes, links });
+      update({ nodesArray, linksArray });
     },
-  },
-  data: function () {
-    return {
-      addButtonEnabled: true,
-      removeButtonEnabled: false,
-    };
   },
 };
 </script>
