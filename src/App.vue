@@ -16,7 +16,12 @@
         >
           Remove Nodes
         </v-btn>
-        <v-btn class="mx-5" color="success" outlined>
+        <v-btn
+          class="mx-5"
+          color="success"
+          outlined
+          @click="establishConnections()"
+        >
           Establish connections
         </v-btn>
       </v-container>
@@ -50,6 +55,15 @@ export default {
     return {
       addButtonEnabled: true,
       removeButtonEnabled: false,
+      nodesArray: [
+        {
+          ip: faker.internet.ip(),
+          isBootNode: true,
+          x: Constants.WIDTH / 2,
+          y: Constants.HEIGHT / 2,
+        },
+      ],
+      linksArray: [],
     };
   },
   methods: {
@@ -62,38 +76,30 @@ export default {
         this.addButtonEnabled = !this.removeButtonEnabled;
       }
     },
+    establishConnections: function () {
+      console.log("Establishing connections...");
+    },
     simulate: function () {
       let self = this;
       let mouseClicked = false;
 
-      // Inititializing with a single boot node.
-      let nodesArray = [
-          {
-            ip: faker.internet.ip(),
-            isBootNode: true,
-            x: Constants.WIDTH / 2,
-            y: Constants.HEIGHT / 2,
-          },
-        ],
-        linksArray = [];
-
       // Functions to add or remove nodes.
       let addNode = function (event) {
         if (mouseClicked && self.addButtonEnabled) {
-          nodesArray.push({
+          self.nodesArray.push({
             ip: faker.internet.ip(),
             x: d3.pointer(event)[0],
             y: d3.pointer(event)[1],
             isBootNode: false,
           });
 
-          update({ nodesArray, linksArray });
+          update({ nodesArray: self.nodesArray, linksArray: self.linksArray });
         }
       };
 
       let removeNodes = function (event) {
         if (mouseClicked && self.removeButtonEnabled) {
-          nodesArray = nodesArray.filter((n) => {
+          self.nodesArray = self.nodesArray.filter((n) => {
             let x1 = d3.pointer(event)[0],
               y1 = d3.pointer(event)[1],
               x2 = n.x,
@@ -104,7 +110,7 @@ export default {
             return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
           });
 
-          update({ nodesArray, linksArray });
+          update({ nodesArray: self.nodesArray, linksArray: self.linksArray });
         }
       };
 
@@ -144,7 +150,9 @@ export default {
             .attr("y2", (d) => d.target.y);
         });
 
-      let update = function ({ nodesArray, linksArray }) {
+      let update = function (graph) {
+        let nodesArray = graph.nodesArray,
+          linksArray = graph.linksArray;
         // Updating the nodes.
         nodeElements = nodeElements
           .data(nodesArray, (d) => d.ip)
@@ -186,7 +194,7 @@ export default {
         simulation.alpha(0.15).restart();
       };
 
-      update({ nodesArray, linksArray });
+      update({ nodesArray: this.nodesArray, linksArray: this.linksArray });
     },
   },
 };
