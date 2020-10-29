@@ -38,8 +38,8 @@
 
 <script>
 import * as d3 from "d3";
-import $ from "jquery";
 import faker from "faker";
+import Constants from "./constants.js";
 
 export default {
   name: "App",
@@ -57,22 +57,12 @@ export default {
       }
     },
     simulate: function () {
-      const WIDTH = $(document).width() * 0.7,
-        HEIGHT = $(document).height() * 0.7;
-
-      const NODE_RADIUS = 15;
-
-      const BOOT_NODE_COLOR = "greenyellow",
-        PEER_NODE_COLOR = "cornflowerblue";
-
-      const LOWLIGHT_OPACITY = 0.55;
-
       let nodes = [
         {
           ip: faker.internet.ip(),
           isBootNode: true,
-          x: WIDTH / 2,
-          y: HEIGHT / 2,
+          x: Constants.WIDTH / 2,
+          y: Constants.HEIGHT / 2,
         },
       ];
       let links = [];
@@ -105,7 +95,7 @@ export default {
             let distance = Math.sqrt(
               Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)
             );
-            return n.isBootNode || distance > NODE_RADIUS * 1.75;
+            return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
           });
 
           update({ nodes, links });
@@ -114,8 +104,8 @@ export default {
 
       let svg = d3
         .select("svg")
-        .attr("width", WIDTH)
-        .attr("height", HEIGHT)
+        .attr("width", Constants.WIDTH)
+        .attr("height", Constants.HEIGHT)
         .style("border", "1px solid black")
         .on("mousemove", removeNodes)
         .on("mousedown", (event) => {
@@ -142,9 +132,9 @@ export default {
 
       const simulation = d3
         .forceSimulation()
-        .force("x", d3.forceX(WIDTH / 2))
-        .force("y", d3.forceY(HEIGHT / 2))
-        .force("collide", d3.forceCollide(NODE_RADIUS * 2))
+        .force("x", d3.forceX(Constants.WIDTH / 2))
+        .force("y", d3.forceY(Constants.HEIGHT / 2))
+        .force("collide", d3.forceCollide(Constants.NODE_RADIUS * 2))
         .force(
           "link",
           d3.forceLink().id((d) => d.ip)
@@ -157,11 +147,13 @@ export default {
           .join((enter) =>
             enter
               .append("circle")
-              .attr("r", NODE_RADIUS)
+              .attr("r", Constants.NODE_RADIUS)
               .attr("fill", (d) =>
-                d.isBootNode ? BOOT_NODE_COLOR : PEER_NODE_COLOR
+                d.isBootNode
+                  ? Constants.BOOT_NODE_COLOR
+                  : Constants.PEER_NODE_COLOR
               )
-              .attr("opacity", LOWLIGHT_OPACITY)
+              .attr("opacity", Constants.LOWLIGHT_OPACITY)
           )
           .on("mouseenter", function (_, node) {
             d3.select(this).attr("opacity", 1);
@@ -173,7 +165,7 @@ export default {
             }
           })
           .on("mouseout", function () {
-            d3.select(this).attr("opacity", LOWLIGHT_OPACITY);
+            d3.select(this).attr("opacity", Constants.LOWLIGHT_OPACITY);
             if (!mouseClicked) {
               d3.selectAll("#node-info-card p").remove();
             }
