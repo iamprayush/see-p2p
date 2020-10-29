@@ -4,17 +4,20 @@
       <v-container id="buttons-container">
         <v-btn
           :color="addButtonEnabled ? 'info' : 'normal'"
-          class="mx-5"
+          class="mx-5 elevation-0"
           @click="toggleButton('addButton')"
         >
           Add Nodes
         </v-btn>
         <v-btn
           :color="removeButtonEnabled ? 'info' : 'normal'"
-          class="mx-5"
+          class="mx-5 elevation-0"
           @click="toggleButton('removeButton')"
         >
           Remove Nodes
+        </v-btn>
+        <v-btn class="mx-5" color="success" outlined>
+          Establish connections
         </v-btn>
       </v-container>
       <v-row>
