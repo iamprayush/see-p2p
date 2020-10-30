@@ -64,6 +64,7 @@ export default {
         },
       ],
       linksArray: [],
+      mouseClicked: false,
     };
   },
   methods: {
@@ -78,14 +79,25 @@ export default {
     },
     establishConnections: function () {
       console.log("Establishing connections...");
+      // console.log(this.linksArray);
+      // this.linksArray.push({
+      //   source: this.nodesArray[0].ip,
+      //   target: this.nodesArray[1].ip,
+      // });
+      this.nodesArray.push({
+        ip: faker.internet.ip(),
+        x: Constants.WIDHT / 2,
+        y: Constants.HEIGHT / 2,
+        isBootNode: false,
+      });
+      // this.simulate();
     },
     simulate: function () {
       let self = this;
-      let mouseClicked = false;
 
       // Functions to add or remove nodes.
       let addNode = function (event) {
-        if (mouseClicked && self.addButtonEnabled) {
+        if (self.mouseClicked && self.addButtonEnabled) {
           self.nodesArray.push({
             ip: faker.internet.ip(),
             x: d3.pointer(event)[0],
@@ -93,12 +105,12 @@ export default {
             isBootNode: false,
           });
 
-          update({ nodesArray: self.nodesArray, linksArray: self.linksArray });
+          update(simulation);
         }
       };
 
       let removeNodes = function (event) {
-        if (mouseClicked && self.removeButtonEnabled) {
+        if (self.mouseClicked && self.removeButtonEnabled) {
           self.nodesArray = self.nodesArray.filter((n) => {
             let x1 = d3.pointer(event)[0],
               y1 = d3.pointer(event)[1],
@@ -110,29 +122,26 @@ export default {
             return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
           });
 
-          update({ nodesArray: self.nodesArray, linksArray: self.linksArray });
+          update(simulation);
         }
       };
 
       // DOM Elements.
-      let svgElement = d3
-          .select("svg")
-          .attr("width", Constants.WIDTH)
-          .attr("height", Constants.HEIGHT)
-          .style("border", "1px solid black")
-          .on("mousemove", removeNodes)
-          .on("mousedown", (event) => {
-            mouseClicked = true;
-            addNode(event);
-          })
-          .on("mouseup", () => {
-            mouseClicked = false;
-          }),
-        linkElements = svgElement.append("g").selectAll("line"),
-        nodeElements = svgElement.append("g").selectAll("circle");
+      d3.select("svg")
+        .attr("width", Constants.WIDTH)
+        .attr("height", Constants.HEIGHT)
+        .style("border", "1px solid black")
+        .on("mousemove", removeNodes)
+        .on("mousedown", (event) => {
+          self.mouseClicked = true;
+          addNode(event);
+        })
+        .on("mouseup", () => {
+          self.mouseClicked = false;
+        });
 
       // D3 Force simulation initialization.
-      const simulation = d3
+      let simulation = d3
         .forceSimulation()
         .force("x", d3.forceX(Constants.WIDTH / 2))
         .force("y", d3.forceY(Constants.HEIGHT / 2))
@@ -142,20 +151,23 @@ export default {
           d3.forceLink().id((d) => d.ip)
         )
         .on("tick", () => {
-          nodeElements.attr("cx", (d) => d.x).attr("cy", (d) => d.y);
-          linkElements
+          d3.select("svg")
+            .selectAll("circle")
+            .attr("cx", (d) => d.x)
+            .attr("cy", (d) => d.y);
+          d3.select("svg")
+            .selectAll("line")
             .attr("x1", (d) => d.source.x)
             .attr("y1", (d) => d.source.y)
             .attr("x2", (d) => d.target.x)
             .attr("y2", (d) => d.target.y);
         });
 
-      let update = function (graph) {
-        let nodesArray = graph.nodesArray,
-          linksArray = graph.linksArray;
+      let update = function (simulation) {
         // Updating the nodes.
-        nodeElements = nodeElements
-          .data(nodesArray, (d) => d.ip)
+        d3.select("svg")
+          .selectAll("circle")
+          .data(self.nodesArray, (d) => d.ip)
           .join((enter) =>
             enter
               .append("circle")
@@ -169,7 +181,7 @@ export default {
           )
           .on("mouseenter", function (_, node) {
             d3.select(this).attr("opacity", 1);
-            if (!mouseClicked) {
+            if (!self.mouseClicked) {
               d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
               d3.select("#node-info-card")
                 .append("p")
@@ -178,23 +190,24 @@ export default {
           })
           .on("mouseout", function () {
             d3.select(this).attr("opacity", Constants.LOWLIGHT_OPACITY);
-            if (!mouseClicked) {
+            if (!self.mouseClicked) {
               d3.selectAll("#node-info-card p").remove();
             }
           });
 
         // Updating the links.
-        linkElements = linkElements
-          .data(linksArray, (d) => [d.source, d.target])
+        d3.select("svg")
+          .selectAll("line")
+          .data(self.linksArray, (d) => [d.source, d.target])
           .join("line");
 
         // Updating the force simulation.
-        simulation.nodes(nodesArray);
-        simulation.force("link").links(linksArray);
+        simulation.nodes(self.nodesArray);
+        simulation.force("link").links(self.linksArray);
         simulation.alpha(0.15).restart();
       };
 
-      update({ nodesArray: this.nodesArray, linksArray: this.linksArray });
+      update(simulation);
     },
   },
 };
