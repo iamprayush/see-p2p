@@ -82,6 +82,7 @@ export default {
             .selectAll("circle")
             .attr("cx", (d) => d.x)
             .attr("cy", (d) => d.y);
+
           d3.select("svg")
             .selectAll("line")
             .attr("x1", (d) => d.source.x)
@@ -181,7 +182,12 @@ export default {
                 ? Constants.BOOT_NODE_COLOR
                 : Constants.PEER_NODE_COLOR
             )
-            .attr("opacity", Constants.LOWLIGHT_OPACITY)
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(400)
+                .attr("opacity", Constants.LOWLIGHT_OPACITY)
+            )
         )
         .on("mouseenter", function (_, node) {
           d3.select(this).attr("opacity", 1);
@@ -203,7 +209,20 @@ export default {
       d3.select("svg")
         .selectAll("line")
         .data(self.linksArray, (d) => [d.source.ip, d.target.ip])
-        .join("line");
+        .join((enter) => {
+          enter
+            .append("line")
+            .attr("stroke", Constants.LINK_COLOR)
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(400)
+                .attr("opacity", Constants.LOWLIGHT_OPACITY * 0.3)
+                .transition()
+                .duration(2000)
+                .attr("opacity", 1)
+            );
+        });
 
       // Updating the force simulation.
       self.simulation.nodes(self.nodesArray);
@@ -241,10 +260,5 @@ export default {
   border: 2px solid lightgray;
   text-align: center;
   height: 30%;
-}
-line {
-  stroke: darkslategrey;
-  stroke-width: 2px;
-  opacity: 0.2;
 }
 </style>

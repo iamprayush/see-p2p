@@ -5,7 +5,8 @@ const HEIGHT = $(document).height() * 0.7;
 const NODE_RADIUS = 10;
 const BOOT_NODE_COLOR = "greenyellow";
 const PEER_NODE_COLOR = "cornflowerblue";
-const LOWLIGHT_OPACITY = 0.55;
+const LINK_COLOR = "cornflowerblue";
+const LOWLIGHT_OPACITY = 1;
 
 export default {
   WIDTH: WIDTH,
@@ -13,5 +14,6 @@ export default {
   NODE_RADIUS: NODE_RADIUS,
   BOOT_NODE_COLOR: BOOT_NODE_COLOR,
   PEER_NODE_COLOR: PEER_NODE_COLOR,
+  LINK_COLOR: LINK_COLOR,
   LOWLIGHT_OPACITY: LOWLIGHT_OPACITY,
 };
