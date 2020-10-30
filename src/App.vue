@@ -3,7 +3,7 @@
     <v-container id="main-container">
       <v-container id="buttons-container">
         <v-btn
-          :color="addButtonEnabled ? 'info' : 'normal'"
+          :color="addButtonEnabled ? 'primary' : 'normal'"
           class="mx-5 elevation-0"
           @click="toggleButton('addButton')"
         >
@@ -18,13 +18,31 @@
         </v-btn>
         <v-btn
           class="mx-5"
-          color="success"
+          color="primary"
           outlined
           @click="establishConnections()"
         >
           Establish connections
         </v-btn>
       </v-container>
+
+      <v-container id="slider-container">
+        <v-row>
+          <v-slider
+            label="File Size (GB)"
+            v-model="fileSize"
+            min="1"
+            max="100"
+            thumb-label
+            :thumb-color="sliderData.thumbColor"
+          ></v-slider>
+          <v-spacer></v-spacer>
+          <v-btn outlined color="success" @click="distribute()">
+            Distribute
+          </v-btn>
+        </v-row>
+      </v-container>
+
       <v-row>
         <v-col cols="10">
           <v-container id="simulation-container" pa-0>
@@ -32,7 +50,7 @@
           </v-container>
         </v-col>
         <v-col>
-          <v-card id="node-info-card">
+          <v-card id="node-info-card" class="mb-7">
             <h3>NODE INFO</h3>
           </v-card>
         </v-col>
@@ -49,10 +67,15 @@ import Constants from "./constants.js";
 export default {
   name: "App",
   mounted: function () {
-    this.startSimulation();
+    this.initialize();
   },
   data: function () {
     return {
+      fileSize: 10,
+      shardSize: 3,
+      sliderData: {
+        thumbColor: Constants.SLIDER_THUMB_COLOR,
+      },
       addButtonEnabled: true,
       removeButtonEnabled: false,
       nodesArray: [
@@ -229,14 +252,15 @@ export default {
       self.simulation.force("link").links(self.linksArray);
       self.simulation.alpha(0.15).restart();
     },
-    startSimulation: function () {
+    initialize: function () {
       let self = this;
 
       // Initializing the SVG.
       d3.select("svg")
         .attr("width", Constants.WIDTH)
         .attr("height", Constants.HEIGHT)
-        .style("border", "1px solid black")
+        .style("border", "1px solid grey")
+        .style("border-radius", "10px")
         .on("mousemove", self.removeNodes)
         .on("mousedown", (event) => {
           self.mouseClicked = true;
@@ -247,6 +271,11 @@ export default {
         });
 
       self.update();
+    },
+    distribute: function () {
+      if (this.linksArray.length === 0) {
+        this.establishConnections();
+      }
     },
   },
 };
@@ -260,5 +289,9 @@ export default {
   border: 2px solid lightgray;
   text-align: center;
   height: 30%;
+}
+#slider-container {
+  text-align: center;
+  width: 50%;
 }
 </style>
