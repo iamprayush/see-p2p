@@ -65,6 +65,27 @@ export default {
       ],
       linksArray: [],
       mouseClicked: false,
+      simulation: d3
+        .forceSimulation()
+        .force("x", d3.forceX(Constants.WIDTH / 2))
+        .force("y", d3.forceY(Constants.HEIGHT / 2))
+        .force("collide", d3.forceCollide(Constants.NODE_RADIUS * 2))
+        .force(
+          "link",
+          d3.forceLink().id((d) => d.ip)
+        )
+        .on("tick", () => {
+          d3.select("svg")
+            .selectAll("circle")
+            .attr("cx", (d) => d.x)
+            .attr("cy", (d) => d.y);
+          d3.select("svg")
+            .selectAll("line")
+            .attr("x1", (d) => d.source.x)
+            .attr("y1", (d) => d.source.y)
+            .attr("x2", (d) => d.target.x)
+            .attr("y2", (d) => d.target.y);
+        }),
     };
   },
   methods: {
@@ -90,7 +111,50 @@ export default {
         y: Constants.HEIGHT / 2,
         isBootNode: false,
       });
-      // this.simulate();
+      this.update();
+    },
+    update: function () {
+      // Updating the nodes.
+      d3.select("svg")
+        .selectAll("circle")
+        .data(this.nodesArray, (d) => d.ip)
+        .join((enter) =>
+          enter
+            .append("circle")
+            .attr("r", Constants.NODE_RADIUS)
+            .attr("fill", (d) =>
+              d.isBootNode
+                ? Constants.BOOT_NODE_COLOR
+                : Constants.PEER_NODE_COLOR
+            )
+            .attr("opacity", Constants.LOWLIGHT_OPACITY)
+        )
+        .on("mouseenter", function (_, node) {
+          d3.select(this).attr("opacity", 1);
+          if (!this.mouseClicked) {
+            d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
+            d3.select("#node-info-card")
+              .append("p")
+              .text(`Type: ${node.isBootNode ? "Boot Node" : "Peer Node"}`);
+          }
+        })
+        .on("mouseout", function () {
+          d3.select(this).attr("opacity", Constants.LOWLIGHT_OPACITY);
+          if (!this.mouseClicked) {
+            d3.selectAll("#node-info-card p").remove();
+          }
+        });
+
+      // Updating the links.
+      d3.select("svg")
+        .selectAll("line")
+        .data(this.linksArray, (d) => [d.source, d.target])
+        .join("line");
+
+      // Updating the force simulation.
+      this.simulation.nodes(this.nodesArray);
+      this.simulation.force("link").links(this.linksArray);
+      this.simulation.alpha(0.15).restart();
     },
     simulate: function () {
       let self = this;
@@ -105,7 +169,7 @@ export default {
             isBootNode: false,
           });
 
-          update(simulation);
+          self.update();
         }
       };
 
@@ -122,11 +186,11 @@ export default {
             return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
           });
 
-          update(simulation);
+          self.update();
         }
       };
 
-      // DOM Elements.
+      // Initializing the SVG.
       d3.select("svg")
         .attr("width", Constants.WIDTH)
         .attr("height", Constants.HEIGHT)
@@ -140,74 +204,7 @@ export default {
           self.mouseClicked = false;
         });
 
-      // D3 Force simulation initialization.
-      let simulation = d3
-        .forceSimulation()
-        .force("x", d3.forceX(Constants.WIDTH / 2))
-        .force("y", d3.forceY(Constants.HEIGHT / 2))
-        .force("collide", d3.forceCollide(Constants.NODE_RADIUS * 2))
-        .force(
-          "link",
-          d3.forceLink().id((d) => d.ip)
-        )
-        .on("tick", () => {
-          d3.select("svg")
-            .selectAll("circle")
-            .attr("cx", (d) => d.x)
-            .attr("cy", (d) => d.y);
-          d3.select("svg")
-            .selectAll("line")
-            .attr("x1", (d) => d.source.x)
-            .attr("y1", (d) => d.source.y)
-            .attr("x2", (d) => d.target.x)
-            .attr("y2", (d) => d.target.y);
-        });
-
-      let update = function (simulation) {
-        // Updating the nodes.
-        d3.select("svg")
-          .selectAll("circle")
-          .data(self.nodesArray, (d) => d.ip)
-          .join((enter) =>
-            enter
-              .append("circle")
-              .attr("r", Constants.NODE_RADIUS)
-              .attr("fill", (d) =>
-                d.isBootNode
-                  ? Constants.BOOT_NODE_COLOR
-                  : Constants.PEER_NODE_COLOR
-              )
-              .attr("opacity", Constants.LOWLIGHT_OPACITY)
-          )
-          .on("mouseenter", function (_, node) {
-            d3.select(this).attr("opacity", 1);
-            if (!self.mouseClicked) {
-              d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
-              d3.select("#node-info-card")
-                .append("p")
-                .text(`Type: ${node.isBootNode ? "Boot Node" : "Peer Node"}`);
-            }
-          })
-          .on("mouseout", function () {
-            d3.select(this).attr("opacity", Constants.LOWLIGHT_OPACITY);
-            if (!self.mouseClicked) {
-              d3.selectAll("#node-info-card p").remove();
-            }
-          });
-
-        // Updating the links.
-        d3.select("svg")
-          .selectAll("line")
-          .data(self.linksArray, (d) => [d.source, d.target])
-          .join("line");
-
-        // Updating the force simulation.
-        simulation.nodes(self.nodesArray);
-        simulation.force("link").links(self.linksArray);
-        simulation.alpha(0.15).restart();
-      };
-
-      update(simulation);
+      this.update();
     },
   },
 };
