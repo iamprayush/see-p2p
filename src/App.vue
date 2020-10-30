@@ -49,7 +49,7 @@ import Constants from "./constants.js";
 export default {
   name: "App",
   mounted: function () {
-    this.simulate();
+    this.startSimulation();
   },
   data: function () {
     return {
@@ -69,10 +69,13 @@ export default {
         .forceSimulation()
         .force("x", d3.forceX(Constants.WIDTH / 2))
         .force("y", d3.forceY(Constants.HEIGHT / 2))
-        .force("collide", d3.forceCollide(Constants.NODE_RADIUS * 2))
+        .force("collide", d3.forceCollide(Constants.NODE_RADIUS * 2.5))
         .force(
           "link",
-          d3.forceLink().id((d) => d.ip)
+          d3
+            .forceLink()
+            .id((d) => d.ip)
+            .strength(0.15)
         )
         .on("tick", () => {
           d3.select("svg")
@@ -98,26 +101,77 @@ export default {
         this.addButtonEnabled = !this.removeButtonEnabled;
       }
     },
+    addNode: function (event) {
+      if (this.mouseClicked && this.addButtonEnabled) {
+        this.linksArray = [];
+        this.nodesArray.push({
+          ip: faker.internet.ip(),
+          x: d3.pointer(event)[0],
+          y: d3.pointer(event)[1],
+          isBootNode: false,
+        });
+
+        this.update();
+      }
+    },
+    removeNodes: function (event) {
+      if (this.mouseClicked && this.removeButtonEnabled) {
+        this.linksArray = [];
+        this.nodesArray = this.nodesArray.filter((n) => {
+          let x1 = d3.pointer(event)[0],
+            y1 = d3.pointer(event)[1],
+            x2 = n.x,
+            y2 = n.y;
+          let distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+          return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
+        });
+
+        this.update();
+      }
+    },
     establishConnections: function () {
-      console.log("Establishing connections...");
-      // console.log(this.linksArray);
-      // this.linksArray.push({
-      //   source: this.nodesArray[0].ip,
-      //   target: this.nodesArray[1].ip,
-      // });
-      this.nodesArray.push({
-        ip: faker.internet.ip(),
-        x: Constants.WIDHT / 2,
-        y: Constants.HEIGHT / 2,
-        isBootNode: false,
-      });
-      this.update();
+      let self = this;
+      self.linksArray = [];
+
+      let isPresent = function (link) {
+        let sourceTarget = [link.source, link.target].sort();
+        for (let otherLink of self.linksArray) {
+          let otherSourceTarget = [otherLink.source, otherLink.target].sort();
+          if (
+            sourceTarget[0] === otherSourceTarget[0] &&
+            sourceTarget[1] === otherSourceTarget[1]
+          ) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      for (let node of self.nodesArray) {
+        let distances = [];
+        for (let other of self.nodesArray) {
+          if (node.ip !== other.ip) {
+            distances.push([other.ip, node.index ^ other.index]);
+          }
+        }
+        distances.sort((a, b) => (a[1] > b[1] ? 1 : -1));
+        for (let i = 1; i <= distances.length; i *= 2) {
+          let link = { source: node.ip, target: distances[i - 1][0] };
+          if (!isPresent(link)) {
+            self.linksArray.push(link);
+          }
+        }
+      }
+
+      self.update();
     },
     update: function () {
+      let self = this;
+
       // Updating the nodes.
       d3.select("svg")
         .selectAll("circle")
-        .data(this.nodesArray, (d) => d.ip)
+        .data(self.nodesArray, (d) => d.ip)
         .join((enter) =>
           enter
             .append("circle")
@@ -131,7 +185,7 @@ export default {
         )
         .on("mouseenter", function (_, node) {
           d3.select(this).attr("opacity", 1);
-          if (!this.mouseClicked) {
+          if (!self.mouseClicked) {
             d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
             d3.select("#node-info-card")
               .append("p")
@@ -140,7 +194,7 @@ export default {
         })
         .on("mouseout", function () {
           d3.select(this).attr("opacity", Constants.LOWLIGHT_OPACITY);
-          if (!this.mouseClicked) {
+          if (!self.mouseClicked) {
             d3.selectAll("#node-info-card p").remove();
           }
         });
@@ -148,63 +202,32 @@ export default {
       // Updating the links.
       d3.select("svg")
         .selectAll("line")
-        .data(this.linksArray, (d) => [d.source, d.target])
+        .data(self.linksArray, (d) => [d.source.ip, d.target.ip])
         .join("line");
 
       // Updating the force simulation.
-      this.simulation.nodes(this.nodesArray);
-      this.simulation.force("link").links(this.linksArray);
-      this.simulation.alpha(0.15).restart();
+      self.simulation.nodes(self.nodesArray);
+      self.simulation.force("link").links(self.linksArray);
+      self.simulation.alpha(0.15).restart();
     },
-    simulate: function () {
+    startSimulation: function () {
       let self = this;
-
-      // Functions to add or remove nodes.
-      let addNode = function (event) {
-        if (self.mouseClicked && self.addButtonEnabled) {
-          self.nodesArray.push({
-            ip: faker.internet.ip(),
-            x: d3.pointer(event)[0],
-            y: d3.pointer(event)[1],
-            isBootNode: false,
-          });
-
-          self.update();
-        }
-      };
-
-      let removeNodes = function (event) {
-        if (self.mouseClicked && self.removeButtonEnabled) {
-          self.nodesArray = self.nodesArray.filter((n) => {
-            let x1 = d3.pointer(event)[0],
-              y1 = d3.pointer(event)[1],
-              x2 = n.x,
-              y2 = n.y;
-            let distance = Math.sqrt(
-              Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)
-            );
-            return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
-          });
-
-          self.update();
-        }
-      };
 
       // Initializing the SVG.
       d3.select("svg")
         .attr("width", Constants.WIDTH)
         .attr("height", Constants.HEIGHT)
         .style("border", "1px solid black")
-        .on("mousemove", removeNodes)
+        .on("mousemove", self.removeNodes)
         .on("mousedown", (event) => {
           self.mouseClicked = true;
-          addNode(event);
+          self.addNode(event);
         })
         .on("mouseup", () => {
           self.mouseClicked = false;
         });
 
-      this.update();
+      self.update();
     },
   },
 };
@@ -218,5 +241,10 @@ export default {
   border: 2px solid lightgray;
   text-align: center;
   height: 30%;
+}
+line {
+  stroke: darkslategrey;
+  stroke-width: 2px;
+  opacity: 0.2;
 }
 </style>
