@@ -46,7 +46,10 @@
       <v-row>
         <v-col cols="10">
           <v-container id="simulation-container" pa-0>
-            <svg ma-0></svg>
+            <svg ma-0>
+              <g class="links"></g>
+              <g class="nodes"></g>
+            </svg>
           </v-container>
         </v-col>
         <v-col>
@@ -72,7 +75,6 @@ export default {
   data: function () {
     return {
       fileSize: 10,
-      shardSize: 3,
       sliderData: {
         thumbColor: Constants.SLIDER_THUMB_COLOR,
       },
@@ -84,6 +86,7 @@ export default {
           isBootNode: true,
           x: Constants.WIDTH / 2,
           y: Constants.HEIGHT / 2,
+          data: [],
         },
       ],
       linksArray: [],
@@ -101,12 +104,12 @@ export default {
             .strength(0.15)
         )
         .on("tick", () => {
-          d3.select("svg")
+          d3.select(".nodes")
             .selectAll("circle")
             .attr("cx", (d) => d.x)
             .attr("cy", (d) => d.y);
 
-          d3.select("svg")
+          d3.select(".links")
             .selectAll("line")
             .attr("x1", (d) => d.source.x)
             .attr("y1", (d) => d.source.y)
@@ -133,6 +136,7 @@ export default {
           x: d3.pointer(event)[0],
           y: d3.pointer(event)[1],
           isBootNode: false,
+          data: [],
         });
 
         this.update();
@@ -171,6 +175,12 @@ export default {
         return false;
       };
 
+      let getRandomInt = function (min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      };
+
       for (let node of self.nodesArray) {
         let distances = [];
         for (let other of self.nodesArray) {
@@ -180,7 +190,11 @@ export default {
         }
         distances.sort((a, b) => (a[1] > b[1] ? 1 : -1));
         for (let i = 1; i <= distances.length; i *= 2) {
-          let link = { source: node.ip, target: distances[i - 1][0] };
+          let link = {
+            source: node.ip,
+            target: distances[i - 1][0],
+            limit: getRandomInt(1, 20),
+          };
           if (!isPresent(link)) {
             self.linksArray.push(link);
           }
@@ -192,8 +206,10 @@ export default {
     update: function () {
       let self = this;
 
+      let noOfShards = Math.ceil(self.fileSize / Constants.SHARD_SIZE);
+
       // Updating the nodes.
-      d3.select("svg")
+      d3.select(".nodes")
         .selectAll("circle")
         .data(self.nodesArray, (d) => d.ip)
         .join((enter) =>
@@ -219,6 +235,11 @@ export default {
             d3.select("#node-info-card")
               .append("p")
               .text(`Type: ${node.isBootNode ? "Boot Node" : "Peer Node"}`);
+            d3.select("#node-info-card")
+              .append("p")
+              .text(
+                `Data: ${((node.data.length / noOfShards) * 100).toFixed(2)}%`
+              );
           }
         })
         .on("mouseout", function () {
@@ -226,10 +247,24 @@ export default {
           if (!self.mouseClicked) {
             d3.selectAll("#node-info-card p").remove();
           }
+        })
+        .on("updateNodeColor", function (event, node) {
+          let dataReceived = node.data.length / noOfShards;
+          let originalColor = node.isBootNode
+            ? Constants.BOOT_NODE_COLOR
+            : Constants.PEER_NODE_COLOR;
+          let colorScale = d3
+            .scaleLinear()
+            .domain([0, 1])
+            .range([originalColor, Constants.FINAL_COLOR]);
+          d3.select(this)
+            .transition()
+            .duration(500)
+            .attr("fill", colorScale(dataReceived));
         });
 
       // Updating the links.
-      d3.select("svg")
+      d3.select(".links")
         .selectAll("line")
         .data(self.linksArray, (d) => [d.source.ip, d.target.ip])
         .join((enter) => {
@@ -242,7 +277,7 @@ export default {
                 .duration(400)
                 .attr("opacity", Constants.LOWLIGHT_OPACITY * 0.3)
                 .transition()
-                .duration(2000)
+                .duration(1000)
                 .attr("opacity", 1)
             );
         });
@@ -272,9 +307,102 @@ export default {
 
       self.update();
     },
-    distribute: function () {
-      if (this.linksArray.length === 0) {
-        this.establishConnections();
+    distribute: async function () {
+      let self = this;
+
+      if (self.linksArray.length === 0) {
+        self.establishConnections();
+      }
+
+      let getNodeIndFromIp = function (ip) {
+        for (let i = 0; i < self.nodesArray.length; i++) {
+          if (self.nodesArray[i].ip === ip) {
+            return i;
+          }
+        }
+      };
+
+      // Creating data array formed by sharding the file.
+      let dataArray = [];
+      let noOfShards = Math.ceil(self.fileSize / Constants.SHARD_SIZE);
+      for (let i = 1; i <= noOfShards; i++) {
+        dataArray.push(`shard_${i}`);
+      }
+
+      // Transferring all the data to the boot node.
+      for (let node of self.nodesArray) {
+        if (node.isBootNode) {
+          node.data = dataArray;
+          break;
+        }
+      }
+      d3.selectAll("circle").dispatch("updateNodeColor");
+
+      /*
+      Strategies for transferring data.
+      While (not all nodes have all the data) {
+        Strategy 1. 
+        For each node {
+          See if any of the neighbors have a shard that you dont,
+          if so, transfer it.
+        }
+
+        Strategy 2.
+        For each link {
+          See if one node has something the other one doesn't, if so, transfer
+          it, and then see if the other one has something that this one
+          doesn't and if so, transfer it.
+        }
+
+        I think strategy 2 will be better since we can keep a track of the
+        amount of files transferred via a single channel, so that we can
+        limit/extend it based on the throughput of the network.
+      }
+      */
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        console.log("1");
+        let baakiChhe = false;
+        for (let node of self.nodesArray) {
+          if (node.data.length < noOfShards) {
+            baakiChhe = true;
+          }
+        }
+        if (!baakiChhe) {
+          break;
+        }
+
+        d3.timeout(function () {}, 1000);
+
+        let ind = 0;
+        while (ind < self.linksArray.length) {
+          let link = self.linksArray[ind];
+          let sourceInd = getNodeIndFromIp(link.source.ip),
+            targetInd = getNodeIndFromIp(link.target.ip);
+
+          // Transferring from source to target.
+          // let t = d3.timer(function () {
+          let lmt = link.limit;
+          for (let shard of self.nodesArray[sourceInd].data) {
+            if (self.nodesArray[targetInd].data.length + 1 > noOfShards) {
+              // t.stop();
+              break;
+            }
+            if (!self.nodesArray[targetInd].data.includes(shard)) {
+              self.nodesArray[targetInd].data.push(shard);
+
+              lmt--;
+              if (lmt < 0) {
+                break;
+              }
+            }
+          }
+          d3.selectAll("circle").dispatch("updateNodeColor");
+          // });
+
+          ind++;
+        }
       }
     },
   },
@@ -288,7 +416,8 @@ export default {
 #node-info-card {
   border: 2px solid lightgray;
   text-align: center;
-  height: 30%;
+  height: fit-content;
+  min-height: 40%;
 }
 #slider-container {
   text-align: center;
