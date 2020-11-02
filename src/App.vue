@@ -63,6 +63,28 @@
 </template>
 
 <script>
+/*
+Strategies for transferring data.
+While (not all nodes have all the data) {
+  Strategy 1. 
+  For each node {
+    See if any of the neighbors have a shard that you dont,
+    if so, transfer it.
+  }
+
+  Strategy 2.
+  For each link {
+    See if one node has something the other one doesn't, if so, transfer
+    it, and then see if the other one has something that this one
+    doesn't and if so, transfer it.
+  }
+
+  I think strategy 2 will be better since we can keep a track of the
+  amount of files transferred via a single channel, so that we can
+  limit/extend it based on the throughput of the network.
+}
+*/
+
 import * as d3 from "d3";
 import faker from "faker";
 import Constants from "./constants.js";
@@ -193,7 +215,7 @@ export default {
           let link = {
             source: node.ip,
             target: distances[i - 1][0],
-            limit: getRandomInt(1, 20),
+            limit: getRandomInt(1, 10),
           };
           if (!isPresent(link)) {
             self.linksArray.push(link);
@@ -257,9 +279,14 @@ export default {
             .scaleLinear()
             .domain([0, 1])
             .range([originalColor, Constants.FINAL_COLOR]);
+
           d3.select(this)
             .transition()
             .duration(500)
+            .attr("opacity", dataReceived < 1 && dataReceived !== 0 ? 0.5 : 1)
+            .transition()
+            .duration(500)
+            .attr("opacity", 1)
             .attr("fill", colorScale(dataReceived));
         });
 
@@ -338,72 +365,60 @@ export default {
       }
       d3.selectAll("circle").dispatch("updateNodeColor");
 
-      /*
-      Strategies for transferring data.
-      While (not all nodes have all the data) {
-        Strategy 1. 
-        For each node {
-          See if any of the neighbors have a shard that you dont,
-          if so, transfer it.
-        }
-
-        Strategy 2.
-        For each link {
-          See if one node has something the other one doesn't, if so, transfer
-          it, and then see if the other one has something that this one
-          doesn't and if so, transfer it.
-        }
-
-        I think strategy 2 will be better since we can keep a track of the
-        amount of files transferred via a single channel, so that we can
-        limit/extend it based on the throughput of the network.
-      }
-      */
-
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        console.log("1");
-        let baakiChhe = false;
-        for (let node of self.nodesArray) {
-          if (node.data.length < noOfShards) {
-            baakiChhe = true;
-          }
-        }
-        if (!baakiChhe) {
-          break;
-        }
-
-        d3.timeout(function () {}, 1000);
-
-        let ind = 0;
-        while (ind < self.linksArray.length) {
-          let link = self.linksArray[ind];
-          let sourceInd = getNodeIndFromIp(link.source.ip),
-            targetInd = getNodeIndFromIp(link.target.ip);
-
-          // Transferring from source to target.
-          // let t = d3.timer(function () {
-          let lmt = link.limit;
-          for (let shard of self.nodesArray[sourceInd].data) {
-            if (self.nodesArray[targetInd].data.length + 1 > noOfShards) {
-              // t.stop();
-              break;
+      // Timeout so that peer node updates wait for boot node color
+      // update to finish.
+      d3.timeout(function () {
+        let t = d3.interval(function () {
+          let isIncomplete = false;
+          for (let node of self.nodesArray) {
+            if (node.data.length < noOfShards) {
+              isIncomplete = true;
             }
-            if (!self.nodesArray[targetInd].data.includes(shard)) {
-              self.nodesArray[targetInd].data.push(shard);
+          }
+          if (!isIncomplete) {
+            t.stop();
+          }
 
-              lmt--;
-              if (lmt < 0) {
+          for (let link of self.linksArray) {
+            let sourceInd = getNodeIndFromIp(link.source.ip),
+              targetInd = getNodeIndFromIp(link.target.ip);
+
+            // Transferring from source to target.
+            let lmt = link.limit;
+            for (let shard of self.nodesArray[sourceInd].data) {
+              if (self.nodesArray[targetInd].data.length + 1 > noOfShards) {
                 break;
               }
-            }
-          }
-          d3.selectAll("circle").dispatch("updateNodeColor");
-          // });
+              if (!self.nodesArray[targetInd].data.includes(shard)) {
+                self.nodesArray[targetInd].data.push(shard);
 
-          ind++;
-        }
-      }
+                lmt--;
+                if (lmt < 0) {
+                  break;
+                }
+              }
+            }
+
+            // Transferring from target to source.
+            lmt = link.limit;
+            for (let shard of self.nodesArray[targetInd].data) {
+              if (self.nodesArray[sourceInd].data.length + 1 > noOfShards) {
+                break;
+              }
+              if (!self.nodesArray[sourceInd].data.includes(shard)) {
+                self.nodesArray[sourceInd].data.push(shard);
+
+                lmt--;
+                if (lmt < 0) {
+                  break;
+                }
+              }
+            }
+
+            d3.selectAll("circle").dispatch("updateNodeColor");
+          }
+        }, 800);
+      }, 500);
     },
   },
 };
