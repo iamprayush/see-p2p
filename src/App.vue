@@ -85,6 +85,17 @@ While (not all nodes have all the data) {
 }
 */
 
+/* TODOS:
+  1. Add custom icons to cursors.
+  2. Add a restart button.
+  3. Optimize and refactor.
+  4. Create vars for delays and intervals.
+  5. After 3, add a slider to be able to adjust simulation speed.
+  6. Add Data received as a bound variable that updates automatically.(Maybe
+    even display it in the node circle)
+  7. Improve the UI.
+*/
+
 import * as d3 from "d3";
 import faker from "faker";
 import Constants from "./constants.js";
