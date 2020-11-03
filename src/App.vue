@@ -91,9 +91,9 @@ While (not all nodes have all the data) {
 /* TODOS:
   (DONE!) 1. Add custom icons to cursors.
   (DONE!) 2. Add a restart button.
-  3. Optimize and refactor.
-  4. Create vars for delays and intervals.
-  5. After 4, add a slider to be able to adjust simulation speed.
+  (DONE!) 3. Create vars for delays and intervals.
+  4. After 3, add a slider to be able to adjust simulation speed.
+  5. Optimize and refactor.
   6. Add functionality to move nodes.
   7. Add Data received as a bound variable that updates automatically.(Maybe
     even display it in the node circle)
@@ -260,20 +260,18 @@ export default {
         .selectAll("circle")
         .data(self.nodesArray, (d) => d.ip)
         .join((enter) =>
-          enter
-            .append("circle")
-            .attr("r", Constants.NODE_RADIUS)
-            .attr("fill", (d) =>
-              d.isBootNode
-                ? Constants.BOOT_NODE_COLOR
-                : Constants.PEER_NODE_COLOR
-            )
-            .call((enter) =>
-              enter
-                .transition()
-                .duration(400)
-                .attr("opacity", Constants.LOWLIGHT_OPACITY)
-            )
+          enter.append("circle").call((enter) =>
+            enter
+              .transition()
+              .duration(Constants.DUR_NODE_APPEAR)
+              .attr("r", Constants.NODE_RADIUS)
+              .attr("fill", (d) =>
+                d.isBootNode
+                  ? Constants.BOOT_NODE_COLOR
+                  : Constants.PEER_NODE_COLOR
+              )
+              .attr("opacity", 1)
+          )
         )
         .on("mouseenter", function (_, node) {
           d3.select(this).attr("opacity", 1);
@@ -293,7 +291,7 @@ export default {
           }
         })
         .on("mouseout", function () {
-          d3.select(this).attr("opacity", Constants.LOWLIGHT_OPACITY);
+          d3.select(this).attr("opacity", 1);
           self.cursorImage = self.getCurrentCursor();
           if (!self.mouseClicked) {
             d3.selectAll("#node-info-card p").remove();
@@ -311,10 +309,10 @@ export default {
 
           d3.select(this)
             .transition()
-            .duration(500)
+            .duration(Constants.DUR_NODE_BLINK / 2)
             .attr("opacity", dataReceived < 1 && dataReceived !== 0 ? 0.5 : 1)
             .transition()
-            .duration(500)
+            .duration(Constants.DUR_NODE_BLINK / 2)
             .attr("opacity", 1)
             .attr("fill", colorScale(dataReceived));
         });
@@ -330,10 +328,7 @@ export default {
             .call((enter) =>
               enter
                 .transition()
-                .duration(400)
-                .attr("opacity", Constants.LOWLIGHT_OPACITY * 0.3)
-                .transition()
-                .duration(1000)
+                .duration(Constants.DUR_LINK_APPEAR)
                 .attr("opacity", 1)
             );
         });
@@ -394,8 +389,6 @@ export default {
       }
       d3.selectAll("circle").dispatch("updateNodeColor");
 
-      // Timeout so that peer node updates wait for boot node color
-      // update to finish.
       d3.timeout(function () {
         let t = d3.interval(function () {
           let isIncomplete = false;
@@ -446,8 +439,11 @@ export default {
 
             d3.selectAll("circle").dispatch("updateNodeColor");
           }
-        }, 800);
-      }, 500);
+        }, Constants.DUR_NODE_BLINK + 100);
+        // Wait for blink animation to finish before starting another cycle.
+      }, Math.max(Constants.DUR_NODE_BLINK, Constants.DUR_LINK_APPEAR));
+      // Wait for boot node color update and connection establishment to finish
+      // before starting the first cycle.
     },
     restart: function () {
       // Removing all connections.
