@@ -182,6 +182,13 @@ export default {
             .attr("cy", (d) => d.y)
             .call(this.drag());
 
+          d3.select(".nodes")
+            .selectAll("text")
+            .attr("x", (d) => d.x)
+            .attr("y", (d) => d.y + 6)
+            .attr("text-anchor", "middle")
+            .call(this.drag());
+
           d3.select(".links")
             .selectAll("line")
             .attr("x1", (d) => d.source.x)
@@ -366,6 +373,30 @@ export default {
             .attr("fill", colorScale(dataReceived));
         });
 
+      // Updating node texts.
+      d3.select(".nodes")
+        .selectAll("text")
+        .data(self.nodesArray)
+        .join((enter) =>
+          enter
+            .append("text")
+            .call((enter) =>
+              enter
+                .transition()
+                .duration(Constants.DUR_NODE_APPEAR)
+                .attr("opacity", 1)
+            )
+        )
+        .on("updateNodeText", function (event, node) {
+          let dataReceived = Math.round((node.data.size / noOfShards) * 100);
+          d3.select(this)
+            .attr("opacity", dataReceived < 100 ? 0 : 1)
+            .transition()
+            .duration(Constants.DUR_NODE_BLINK)
+            .attr("opacity", 1)
+            .text(dataReceived);
+        });
+
       // Updating the links.
       d3.select(".links")
         .selectAll("line")
@@ -425,6 +456,7 @@ export default {
       self.nodesArray[0].data = new Set(dataArray);
       self.completedNodes.add(self.nodesArray[0].ip);
       d3.selectAll("circle").dispatch("updateNodeColor");
+      d3.selectAll("text").dispatch("updateNodeText");
 
       d3.timeout(function () {
         self.distributionTimer = d3.interval(function () {
@@ -472,6 +504,7 @@ export default {
             }
 
             d3.selectAll("circle").dispatch("updateNodeColor");
+            d3.selectAll("text").dispatch("updateNodeText");
           }
         }, (Constants.DUR_NODE_BLINK + Constants.DUR_DELAY) /
           self.simulationSpeed);
@@ -504,6 +537,7 @@ export default {
 
       this.update();
       d3.selectAll("circle").dispatch("updateNodeColor");
+      d3.selectAll("text").dispatch("updateNodeText");
     },
     drag: function () {
       let self = this;
@@ -551,5 +585,17 @@ export default {
 }
 .sim-speed-text {
   font-weight: normal;
+}
+.nodes text {
+  font-family: sans-serif;
+  font-size: 18px;
+  font-weight: bold;
+  fill: white;
+
+  /* To make the text unselectable. */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
 }
 </style>
