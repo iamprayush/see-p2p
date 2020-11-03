@@ -29,6 +29,7 @@
       <v-container id="slider-container">
         <v-row>
           <v-slider
+            class="mx-10"
             label="File Size (GB)"
             v-model="fileSize"
             min="1"
@@ -36,9 +37,11 @@
             thumb-label
             :thumb-color="sliderData.thumbColor"
           ></v-slider>
-          <v-spacer></v-spacer>
-          <v-btn outlined color="success" @click="distribute()">
+          <v-btn outlined class="mx-2" color="success" @click="distribute()">
             Distribute
+          </v-btn>
+          <v-btn outlined class="mx-2" color="warning" @click="restart()">
+            Restart
           </v-btn>
         </v-row>
       </v-container>
@@ -87,10 +90,10 @@ While (not all nodes have all the data) {
 
 /* TODOS:
   (DONE!) 1. Add custom icons to cursors.
-  2. Add a restart button.
+  (DONE!) 2. Add a restart button.
   3. Optimize and refactor.
   4. Create vars for delays and intervals.
-  5. After 3, add a slider to be able to adjust simulation speed.
+  5. After 4, add a slider to be able to adjust simulation speed.
   6. Add functionality to move nodes.
   7. Add Data received as a bound variable that updates automatically.(Maybe
     even display it in the node circle)
@@ -109,7 +112,7 @@ export default {
   data: function () {
     return {
       cursorImage: Constants.ADD_CURSOR,
-      fileSize: 10,
+      fileSize: Constants.INITIAL_FILE_SIZE,
       sliderData: {
         thumbColor: Constants.SLIDER_THUMB_COLOR,
       },
@@ -360,7 +363,7 @@ export default {
 
       self.update();
     },
-    distribute: async function () {
+    distribute: function () {
       let self = this;
 
       if (self.linksArray.length === 0) {
@@ -446,6 +449,23 @@ export default {
         }, 800);
       }, 500);
     },
+    restart: function () {
+      // Removing all connections.
+      this.linksArray = [];
+
+      // Removing all nodes except the boot node.
+      this.nodesArray = this.nodesArray.filter(function (node) {
+        return node.isBootNode;
+      });
+      // Removing all of the data from the boot node.
+      this.nodesArray[0].data = [];
+
+      // Resetting file size slider.
+      this.fileSize = Constants.INITIAL_FILE_SIZE;
+
+      this.update();
+      d3.selectAll("circle").dispatch("updateNodeColor");
+    },
   },
 };
 </script>
@@ -462,6 +482,6 @@ export default {
 }
 #slider-container {
   text-align: center;
-  width: 50%;
+  width: 60%;
 }
 </style>

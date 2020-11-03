@@ -11,6 +11,7 @@ const FINAL_COLOR = "greenyellow";
 const LINK_COLOR = "grey";
 const LOWLIGHT_OPACITY = 1;
 const SHARD_SIZE = 0.5; // Unit: GB
+const INITIAL_FILE_SIZE = 10; // Unit: GB
 const ADD_CURSOR = `url(${require("@/assets/addIcon.svg")}) 17.5 17.5, default`;
 const REMOVE_CURSOR = `url(${require("@/assets/removeIcon.svg")}) ${REMOVE_ICON_RADIUS} ${REMOVE_ICON_RADIUS}, default`;
 
@@ -26,6 +27,7 @@ export default {
   LINK_COLOR: LINK_COLOR,
   LOWLIGHT_OPACITY: LOWLIGHT_OPACITY,
   SHARD_SIZE: SHARD_SIZE,
+  INITIAL_FILE_SIZE: INITIAL_FILE_SIZE,
   ADD_CURSOR: ADD_CURSOR,
   REMOVE_CURSOR: REMOVE_CURSOR,
 };
