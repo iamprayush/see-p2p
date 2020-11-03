@@ -3,14 +3,21 @@
     <v-container id="main-container">
       <v-container id="buttons-container">
         <v-btn
-          :color="addButtonEnabled ? 'primary' : 'normal'"
+          :color="toggleButtons.moveButtonEnabled ? 'primary' : 'normal'"
+          class="mx-5 elevation-0"
+          @click="toggleButton('moveButton')"
+        >
+          Move Nodes
+        </v-btn>
+        <v-btn
+          :color="toggleButtons.addButtonEnabled ? 'primary' : 'normal'"
           class="mx-5 elevation-0"
           @click="toggleButton('addButton')"
         >
           Add Nodes
         </v-btn>
         <v-btn
-          :color="removeButtonEnabled ? 'info' : 'normal'"
+          :color="toggleButtons.removeButtonEnabled ? 'primary' : 'normal'"
           class="mx-5 elevation-0"
           @click="toggleButton('removeButton')"
         >
@@ -112,7 +119,7 @@ While (not all nodes have all the data) {
   (DONE!) 3. Create vars for delays and intervals.
   (DONE!) 4. After 3, add a slider to be able to adjust simulation speed.
   (DONE!) 5. Optimize and refactor.
-  6. Add functionality to move nodes.
+  (DONE!) 6. Add functionality to move nodes.
   7. Add Data received as a bound variable that updates automatically. (Maybe
     even display it in the node circle)
   8. Improve the UI.
@@ -132,13 +139,16 @@ export default {
   },
   data: function () {
     return {
-      cursorImage: Constants.ADD_CURSOR,
+      cursorImage: "default",
       fileSize: Constants.INITIAL_FILE_SIZE,
       sliderData: {
         thumbColor: Constants.SLIDER_THUMB_COLOR,
       },
-      addButtonEnabled: true,
-      removeButtonEnabled: false,
+      toggleButtons: {
+        moveButtonEnabled: true,
+        addButtonEnabled: false,
+        removeButtonEnabled: false,
+      },
       nodesArray: [
         {
           ip: faker.internet.ip(),
@@ -169,7 +179,8 @@ export default {
           d3.select(".nodes")
             .selectAll("circle")
             .attr("cx", (d) => d.x)
-            .attr("cy", (d) => d.y);
+            .attr("cy", (d) => d.y)
+            .call(this.drag());
 
           d3.select(".links")
             .selectAll("line")
@@ -182,22 +193,28 @@ export default {
   },
   methods: {
     toggleButton: function (buttonName) {
-      if (buttonName === "addButton") {
-        this.addButtonEnabled = true;
-        this.removeButtonEnabled = !this.addButtonEnabled;
+      if (buttonName === "moveButton") {
+        this.toggleButtons.moveButtonEnabled = true;
+        this.toggleButtons.addButtonEnabled = false;
+        this.toggleButtons.removeButtonEnabled = false;
+      } else if (buttonName === "addButton") {
+        this.toggleButtons.moveButtonEnabled = false;
+        this.toggleButtons.addButtonEnabled = true;
+        this.toggleButtons.removeButtonEnabled = false;
       } else if (buttonName === "removeButton") {
-        this.removeButtonEnabled = true;
-        this.addButtonEnabled = !this.removeButtonEnabled;
+        this.toggleButtons.moveButtonEnabled = false;
+        this.toggleButtons.addButtonEnabled = false;
+        this.toggleButtons.removeButtonEnabled = true;
       }
       this.cursorImage = this.getCurrentCursor();
     },
     getCurrentCursor: function () {
-      return this.addButtonEnabled
-        ? Constants.ADD_CURSOR
-        : Constants.REMOVE_CURSOR;
+      if (this.toggleButtons.moveButtonEnabled) return "default";
+      if (this.toggleButtons.addButtonEnabled) return Constants.ADD_CURSOR;
+      return Constants.REMOVE_CURSOR;
     },
     addNode: function (event) {
-      if (this.mouseClicked && this.addButtonEnabled) {
+      if (this.mouseClicked && this.toggleButtons.addButtonEnabled) {
         this.linksArray = [];
         this.nodesArray.push({
           ip: faker.internet.ip(),
@@ -211,7 +228,7 @@ export default {
       }
     },
     removeNodes: function (event) {
-      if (this.mouseClicked && this.removeButtonEnabled) {
+      if (this.mouseClicked && this.toggleButtons.removeButtonEnabled) {
         this.linksArray = [];
         this.nodesArray = this.nodesArray.filter((n) => {
           let x1 = d3.pointer(event)[0],
@@ -308,7 +325,7 @@ export default {
         .on("mouseenter", function (event, node) {
           d3.select(this).attr("opacity", 1);
           if (!self.mouseClicked) {
-            self.cursorImage = self.addButtonEnabled
+            self.cursorImage = self.toggleButtons.addButtonEnabled
               ? "default"
               : self.getCurrentCursor();
             d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
@@ -487,6 +504,32 @@ export default {
 
       this.update();
       d3.selectAll("circle").dispatch("updateNodeColor");
+    },
+    drag: function () {
+      let self = this;
+
+      let dragstarted = function (event) {
+        if (!event.active) self.simulation.alphaTarget(0.3).restart();
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+      };
+
+      let dragged = function (event) {
+        event.subject.fx = event.x;
+        event.subject.fy = event.y;
+      };
+
+      let dragended = function (event) {
+        if (!event.active) self.simulation.alphaTarget(0);
+        event.subject.fx = null;
+        event.subject.fy = null;
+      };
+
+      return d3
+        .drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended);
     },
   },
 };
