@@ -28,6 +28,24 @@
 
       <v-container id="slider-container">
         <v-row>
+          <v-btn
+            fab
+            elevation="1"
+            x-small
+            @click="simulationSpeed = Math.max(1, simulationSpeed - 1)"
+          >
+            <v-icon>mdi-minus</v-icon>
+          </v-btn>
+          <h3 class="mt-1 mx-3 sim-speed-text">{{ simulationSpeed }}x</h3>
+          <v-btn
+            fab
+            elevation="1"
+            x-small
+            @click="simulationSpeed = Math.min(10, simulationSpeed + 1)"
+          >
+            <v-icon>mdi-plus</v-icon>
+          </v-btn>
+
           <v-slider
             class="mx-10"
             label="File Size (GB)"
@@ -40,8 +58,8 @@
           <v-btn outlined class="mx-2" color="success" @click="distribute()">
             Distribute
           </v-btn>
-          <v-btn outlined class="mx-2" color="warning" @click="restart()">
-            Restart
+          <v-btn outlined class="mx-2" color="warning" @click="reset()">
+            Reset
           </v-btn>
         </v-row>
       </v-container>
@@ -92,7 +110,7 @@ While (not all nodes have all the data) {
   (DONE!) 1. Add custom icons to cursors.
   (DONE!) 2. Add a restart button.
   (DONE!) 3. Create vars for delays and intervals.
-  4. After 3, add a slider to be able to adjust simulation speed.
+  (DONE!) 4. After 3, add a slider to be able to adjust simulation speed.
   5. Optimize and refactor.
   6. Add functionality to move nodes.
   7. Add Data received as a bound variable that updates automatically.(Maybe
@@ -129,6 +147,7 @@ export default {
       ],
       linksArray: [],
       mouseClicked: false,
+      simulationSpeed: 1,
       simulation: d3
         .forceSimulation()
         .force("x", d3.forceX(Constants.WIDTH / 2))
@@ -309,10 +328,10 @@ export default {
 
           d3.select(this)
             .transition()
-            .duration(Constants.DUR_NODE_BLINK / 2)
+            .duration(Constants.DUR_NODE_BLINK / self.simulationSpeed / 2)
             .attr("opacity", dataReceived < 1 && dataReceived !== 0 ? 0.5 : 1)
             .transition()
-            .duration(Constants.DUR_NODE_BLINK / 2)
+            .duration(Constants.DUR_NODE_BLINK / self.simulationSpeed / 2)
             .attr("opacity", 1)
             .attr("fill", colorScale(dataReceived));
         });
@@ -328,7 +347,7 @@ export default {
             .call((enter) =>
               enter
                 .transition()
-                .duration(Constants.DUR_LINK_APPEAR)
+                .duration(Constants.DUR_LINK_APPEAR / self.simulationSpeed)
                 .attr("opacity", 1)
             );
         });
@@ -439,13 +458,16 @@ export default {
 
             d3.selectAll("circle").dispatch("updateNodeColor");
           }
-        }, Constants.DUR_NODE_BLINK + 100);
+        }, (Constants.DUR_NODE_BLINK + Constants.DUR_DELAY) /
+          self.simulationSpeed);
         // Wait for blink animation to finish before starting another cycle.
-      }, Math.max(Constants.DUR_NODE_BLINK, Constants.DUR_LINK_APPEAR));
+      }, (Math.max(Constants.DUR_NODE_BLINK, Constants.DUR_LINK_APPEAR) +
+        Constants.DUR_DELAY) /
+        self.simulationSpeed);
       // Wait for boot node color update and connection establishment to finish
       // before starting the first cycle.
     },
-    restart: function () {
+    reset: function () {
       // Removing all connections.
       this.linksArray = [];
 
@@ -456,8 +478,9 @@ export default {
       // Removing all of the data from the boot node.
       this.nodesArray[0].data = [];
 
-      // Resetting file size slider.
+      // Resetting file size slider and simulation speed counter.
       this.fileSize = Constants.INITIAL_FILE_SIZE;
+      this.simulationSpeed = 1;
 
       this.update();
       d3.selectAll("circle").dispatch("updateNodeColor");
@@ -479,5 +502,8 @@ export default {
 #slider-container {
   text-align: center;
   width: 60%;
+}
+.sim-speed-text {
+  font-weight: normal;
 }
 </style>

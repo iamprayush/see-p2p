@@ -23,6 +23,7 @@ const REMOVE_CURSOR = `url(${require("@/assets/removeIcon.svg")}) ${REMOVE_ICON_
 const DUR_NODE_APPEAR = 400;
 const DUR_NODE_BLINK = 1000;
 const DUR_LINK_APPEAR = 400;
+const DUR_DELAY = 200;
 
 export default {
   WIDTH: WIDTH,
@@ -41,4 +42,5 @@ export default {
   DUR_NODE_APPEAR: DUR_NODE_APPEAR,
   DUR_NODE_BLINK: DUR_NODE_BLINK,
   DUR_LINK_APPEAR: DUR_LINK_APPEAR,
+  DUR_DELAY: DUR_DELAY,
 };
