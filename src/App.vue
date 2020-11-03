@@ -111,11 +111,14 @@ While (not all nodes have all the data) {
   (DONE!) 2. Add a restart button.
   (DONE!) 3. Create vars for delays and intervals.
   (DONE!) 4. After 3, add a slider to be able to adjust simulation speed.
-  5. Optimize and refactor.
+  (DONE!) 5. Optimize and refactor.
   6. Add functionality to move nodes.
-  7. Add Data received as a bound variable that updates automatically.(Maybe
+  7. Add Data received as a bound variable that updates automatically. (Maybe
     even display it in the node circle)
   8. Improve the UI.
+  9. Add functionality to pause the simulation.
+  10. Add functionality to speed up the simulation while running.
+  11. Add warning sign if simulation will be too computationally heavy.
 */
 
 import * as d3 from "d3";
