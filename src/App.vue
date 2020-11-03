@@ -46,7 +46,7 @@
       <v-row>
         <v-col cols="10">
           <v-container id="simulation-container" pa-0>
-            <svg ma-0>
+            <svg ma-0 :style="{ cursor: cursorImage }">
               <g class="links"></g>
               <g class="nodes"></g>
             </svg>
@@ -64,7 +64,7 @@
 
 <script>
 /*
-Strategies for transferring data.
+Strategies for transferring distribution.
 While (not all nodes have all the data) {
   Strategy 1. 
   For each node {
@@ -86,14 +86,15 @@ While (not all nodes have all the data) {
 */
 
 /* TODOS:
-  1. Add custom icons to cursors.
+  (DONE!) 1. Add custom icons to cursors.
   2. Add a restart button.
   3. Optimize and refactor.
   4. Create vars for delays and intervals.
   5. After 3, add a slider to be able to adjust simulation speed.
-  6. Add Data received as a bound variable that updates automatically.(Maybe
+  6. Add functionality to move nodes.
+  7. Add Data received as a bound variable that updates automatically.(Maybe
     even display it in the node circle)
-  7. Improve the UI.
+  8. Improve the UI.
 */
 
 import * as d3 from "d3";
@@ -107,6 +108,7 @@ export default {
   },
   data: function () {
     return {
+      cursorImage: Constants.ADD_CURSOR,
       fileSize: 10,
       sliderData: {
         thumbColor: Constants.SLIDER_THUMB_COLOR,
@@ -160,6 +162,12 @@ export default {
         this.removeButtonEnabled = true;
         this.addButtonEnabled = !this.removeButtonEnabled;
       }
+      this.cursorImage = this.getCurrentCursor();
+    },
+    getCurrentCursor: function () {
+      return this.addButtonEnabled
+        ? Constants.ADD_CURSOR
+        : Constants.REMOVE_CURSOR;
     },
     addNode: function (event) {
       if (this.mouseClicked && this.addButtonEnabled) {
@@ -184,7 +192,10 @@ export default {
             x2 = n.x,
             y2 = n.y;
           let distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
-          return n.isBootNode || distance > Constants.NODE_RADIUS * 1.75;
+          return (
+            n.isBootNode ||
+            distance > Constants.NODE_RADIUS + Constants.REMOVE_ICON_RADIUS
+          );
         });
 
         this.update();
@@ -264,6 +275,9 @@ export default {
         .on("mouseenter", function (_, node) {
           d3.select(this).attr("opacity", 1);
           if (!self.mouseClicked) {
+            self.cursorImage = self.addButtonEnabled
+              ? "default"
+              : self.getCurrentCursor();
             d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
             d3.select("#node-info-card")
               .append("p")
@@ -277,6 +291,7 @@ export default {
         })
         .on("mouseout", function () {
           d3.select(this).attr("opacity", Constants.LOWLIGHT_OPACITY);
+          self.cursorImage = self.getCurrentCursor();
           if (!self.mouseClicked) {
             d3.selectAll("#node-info-card p").remove();
           }
