@@ -142,12 +142,14 @@ export default {
           isBootNode: true,
           x: Constants.WIDTH / 2,
           y: Constants.HEIGHT / 2,
-          data: [],
+          data: new Set(),
         },
       ],
       linksArray: [],
+      completedNodes: new Set(), // Nodes that have all the data.
       mouseClicked: false,
       simulationSpeed: 1,
+      distributionTimer: null,
       simulation: d3
         .forceSimulation()
         .force("x", d3.forceX(Constants.WIDTH / 2))
@@ -199,7 +201,7 @@ export default {
           x: d3.pointer(event)[0],
           y: d3.pointer(event)[1],
           isBootNode: false,
-          data: [],
+          data: new Set(),
         });
 
         this.update();
@@ -224,6 +226,14 @@ export default {
       }
     },
     establishConnections: function () {
+      // Establishes connections based on XOR distance metric.
+      // More info: https://en.wikipedia.org/wiki/Kademlia
+      // Every peer will be connected to log(n) peers. For each peer, it will be
+      // connected to the peer at a distance of 1, 2, 4, 8, ... and so on.
+      // According to Kademlia, the distance between two nodes will be measured
+      // by XORing their IDs, which in this case is their indices. We could also
+      // XOR the hash of their IP addresses.
+
       let self = this;
       self.linksArray = [];
 
@@ -292,7 +302,7 @@ export default {
               .attr("opacity", 1)
           )
         )
-        .on("mouseenter", function (_, node) {
+        .on("mouseenter", function (event, node) {
           d3.select(this).attr("opacity", 1);
           if (!self.mouseClicked) {
             self.cursorImage = self.addButtonEnabled
@@ -305,7 +315,7 @@ export default {
             d3.select("#node-info-card")
               .append("p")
               .text(
-                `Data: ${((node.data.length / noOfShards) * 100).toFixed(2)}%`
+                `Data: ${((node.data.size / noOfShards) * 100).toFixed(2)}%`
               );
           }
         })
@@ -317,7 +327,7 @@ export default {
           }
         })
         .on("updateNodeColor", function (event, node) {
-          let dataReceived = node.data.length / noOfShards;
+          let dataReceived = node.data.size / noOfShards;
           let originalColor = node.isBootNode
             ? Constants.BOOT_NODE_COLOR
             : Constants.PEER_NODE_COLOR;
@@ -384,14 +394,6 @@ export default {
         self.establishConnections();
       }
 
-      let getNodeIndFromIp = function (ip) {
-        for (let i = 0; i < self.nodesArray.length; i++) {
-          if (self.nodesArray[i].ip === ip) {
-            return i;
-          }
-        }
-      };
-
       // Creating data array formed by sharding the file.
       let dataArray = [];
       let noOfShards = Math.ceil(self.fileSize / Constants.SHARD_SIZE);
@@ -400,57 +402,50 @@ export default {
       }
 
       // Transferring all the data to the boot node.
-      for (let node of self.nodesArray) {
-        if (node.isBootNode) {
-          node.data = dataArray;
-          break;
-        }
-      }
+      self.nodesArray[0].data = new Set(dataArray);
+      self.completedNodes.add(self.nodesArray[0].ip);
       d3.selectAll("circle").dispatch("updateNodeColor");
 
       d3.timeout(function () {
-        let t = d3.interval(function () {
-          let isIncomplete = false;
-          for (let node of self.nodesArray) {
-            if (node.data.length < noOfShards) {
-              isIncomplete = true;
-            }
-          }
-          if (!isIncomplete) {
-            t.stop();
-          }
+        self.distributionTimer = d3.interval(function () {
+          if (self.completedNodes.size === self.nodesArray.length)
+            self.distributionTimer.stop();
 
           for (let link of self.linksArray) {
-            let sourceInd = getNodeIndFromIp(link.source.ip),
-              targetInd = getNodeIndFromIp(link.target.ip);
+            let sourceIndex = link.source.index,
+              targetIndex = link.target.index;
 
             // Transferring from source to target.
-            let lmt = link.limit;
-            for (let shard of self.nodesArray[sourceInd].data) {
-              if (self.nodesArray[targetInd].data.length + 1 > noOfShards) {
+            let linkLimit = link.limit;
+            for (let shard of self.nodesArray[sourceIndex].data) {
+              // If the target node already has all the data, then we break.
+              if (self.nodesArray[targetIndex].data.size === noOfShards) {
+                self.completedNodes.add(self.nodesArray[targetIndex].ip);
                 break;
               }
-              if (!self.nodesArray[targetInd].data.includes(shard)) {
-                self.nodesArray[targetInd].data.push(shard);
+              if (!self.nodesArray[targetIndex].data.has(shard)) {
+                self.nodesArray[targetIndex].data.add(shard);
 
-                lmt--;
-                if (lmt < 0) {
+                linkLimit--;
+                if (linkLimit < 0) {
                   break;
                 }
               }
             }
 
             // Transferring from target to source.
-            lmt = link.limit;
-            for (let shard of self.nodesArray[targetInd].data) {
-              if (self.nodesArray[sourceInd].data.length + 1 > noOfShards) {
+            linkLimit = link.limit;
+            for (let shard of self.nodesArray[targetIndex].data) {
+              // If the target node already has all the data, then we break.
+              if (self.nodesArray[sourceIndex].data.length === noOfShards) {
+                self.completedNodes.add(self.nodesArray[sourceIndex].ip);
                 break;
               }
-              if (!self.nodesArray[sourceInd].data.includes(shard)) {
-                self.nodesArray[sourceInd].data.push(shard);
+              if (!self.nodesArray[sourceIndex].data.has(shard)) {
+                self.nodesArray[sourceIndex].data.add(shard);
 
-                lmt--;
-                if (lmt < 0) {
+                linkLimit--;
+                if (linkLimit < 0) {
                   break;
                 }
               }
@@ -468,6 +463,9 @@ export default {
       // before starting the first cycle.
     },
     reset: function () {
+      // Stopping the distribution timer.
+      if (this.distributionTimer !== null) this.distributionTimer.stop();
+
       // Removing all connections.
       this.linksArray = [];
 
@@ -476,7 +474,9 @@ export default {
         return node.isBootNode;
       });
       // Removing all of the data from the boot node.
-      this.nodesArray[0].data = [];
+      this.nodesArray[0].data.clear();
+
+      this.completedNodes.clear();
 
       // Resetting file size slider and simulation speed counter.
       this.fileSize = Constants.INITIAL_FILE_SIZE;
