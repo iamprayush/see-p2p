@@ -1,24 +1,6 @@
-# see-p2p
+# [SeeP2P](https://seep2p.herokuapp.com/)
 
-## Project setup
-```
-npm install
-```
+A peer to peer network simulator.
 
-### Compiles and hot-reloads for development
-```
-npm run serve
-```
-
-### Compiles and minifies for production
-```
-npm run build
-```
-
-### Lints and fixes files
-```
-npm run lint
-```
-
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+### Demo
+![demo](https://user-images.githubusercontent.com/35144226/98116085-ce1bf600-1ecd-11eb-97ec-cdf10456ad95.gif)
