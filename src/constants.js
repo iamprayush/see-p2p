@@ -1,16 +1,16 @@
 import $ from "jquery";
 
 const WIDTH = $(document).width() * 0.7;
-const HEIGHT = $(document).height() * 0.7;
+const HEIGHT = $(document).height() * 0.6;
 
 const NODE_RADIUS = 18;
 const REMOVE_ICON_RADIUS = 42.5;
 
 const SLIDER_THUMB_COLOR = "grey darken-2";
-const BOOT_NODE_COLOR = "grey";
+const BOOT_NODE_COLOR = "#545454";
 const PEER_NODE_COLOR = "cornflowerblue";
-const FINAL_COLOR = "greenyellow";
-const LINK_COLOR = "grey";
+const FINAL_COLOR = "#4CAF50";
+const LINK_COLOR = "#545454";
 
 // Unit: GB
 const SHARD_SIZE = 0.5;

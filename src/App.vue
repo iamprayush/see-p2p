@@ -1,7 +1,14 @@
 <template>
   <v-app>
     <v-container id="main-container">
-      <v-container id="buttons-container">
+      <v-img
+        id="logo"
+        :src="require('./assets/seep2p_logo_white.svg')"
+        height="200"
+        width="200"
+      />
+
+      <v-container class="buttons-container">
         <v-btn
           :color="toggleButtons.moveButtonEnabled ? 'primary' : 'normal'"
           class="mx-5 elevation-0"
@@ -23,6 +30,9 @@
         >
           Remove Nodes
         </v-btn>
+      </v-container>
+
+      <v-container class="buttons-container">
         <v-btn
           class="mx-5"
           color="primary"
@@ -30,6 +40,12 @@
           @click="establishConnections()"
         >
           Establish connections
+        </v-btn>
+        <v-btn class="mx-5" outlined color="success" @click="distribute()">
+          Distribute
+        </v-btn>
+        <v-btn class="mx-5" outlined color="warning" @click="reset()">
+          Reset
         </v-btn>
       </v-container>
 
@@ -61,13 +77,8 @@
             max="100"
             thumb-label
             :thumb-color="sliderData.thumbColor"
+            @change="onFileSizeChange"
           ></v-slider>
-          <v-btn outlined class="mx-2" color="success" @click="distribute()">
-            Distribute
-          </v-btn>
-          <v-btn outlined class="mx-2" color="warning" @click="reset()">
-            Reset
-          </v-btn>
         </v-row>
       </v-container>
 
@@ -120,8 +131,8 @@ While (not all nodes have all the data) {
   (DONE!) 4. After 3, add a slider to be able to adjust simulation speed.
   (DONE!) 5. Optimize and refactor.
   (DONE!) 6. Add functionality to move nodes.
-  7. Add Data received as a bound variable that updates automatically. (Maybe
-    even display it in the node circle)
+  (DONE!) 7. Add Data received as a bound variable that updates automatically.
+    (Maybe even display it in the node circle)
   8. Improve the UI.
   9. Add functionality to pause the simulation.
   10. Add functionality to speed up the simulation while running.
@@ -311,6 +322,25 @@ export default {
 
       let noOfShards = Math.ceil(self.fileSize / Constants.SHARD_SIZE);
 
+      let onMouseEnter = function (event, node) {
+        if (!self.mouseClicked) {
+          self.cursorImage = self.toggleButtons.addButtonEnabled
+            ? "default"
+            : self.getCurrentCursor();
+          d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
+          d3.select("#node-info-card")
+            .append("p")
+            .text(`Type: ${node.isBootNode ? "Boot Node" : "Peer Node"}`);
+        }
+      };
+
+      let onMouseOut = function () {
+        self.cursorImage = self.getCurrentCursor();
+        if (!self.mouseClicked) {
+          d3.selectAll("#node-info-card p").remove();
+        }
+      };
+
       // Updating the nodes.
       d3.select(".nodes")
         .selectAll("circle")
@@ -329,30 +359,8 @@ export default {
               .attr("opacity", 1)
           )
         )
-        .on("mouseenter", function (event, node) {
-          d3.select(this).attr("opacity", 1);
-          if (!self.mouseClicked) {
-            self.cursorImage = self.toggleButtons.addButtonEnabled
-              ? "default"
-              : self.getCurrentCursor();
-            d3.select("#node-info-card").append("p").text(`IP: ${node.ip}`);
-            d3.select("#node-info-card")
-              .append("p")
-              .text(`Type: ${node.isBootNode ? "Boot Node" : "Peer Node"}`);
-            d3.select("#node-info-card")
-              .append("p")
-              .text(
-                `Data: ${((node.data.size / noOfShards) * 100).toFixed(2)}%`
-              );
-          }
-        })
-        .on("mouseout", function () {
-          d3.select(this).attr("opacity", 1);
-          self.cursorImage = self.getCurrentCursor();
-          if (!self.mouseClicked) {
-            d3.selectAll("#node-info-card p").remove();
-          }
-        })
+        .on("mouseenter", onMouseEnter)
+        .on("mouseout", onMouseOut)
         .on("updateNodeColor", function (event, node) {
           let dataReceived = node.data.size / noOfShards;
           let originalColor = node.isBootNode
@@ -387,6 +395,8 @@ export default {
                 .attr("opacity", 1)
             )
         )
+        .on("mouseenter", onMouseEnter)
+        .on("mouseout", onMouseOut)
         .on("updateNodeText", function (event, node) {
           let dataReceived = Math.round((node.data.size / noOfShards) * 100);
           d3.select(this)
@@ -425,8 +435,6 @@ export default {
       d3.select("svg")
         .attr("width", Constants.WIDTH)
         .attr("height", Constants.HEIGHT)
-        .style("border", "1px solid grey")
-        .style("border-radius", "10px")
         .on("mousemove", self.removeNodes)
         .on("mousedown", (event) => {
           self.mouseClicked = true;
@@ -533,6 +541,7 @@ export default {
 
       // Resetting file size slider and simulation speed counter.
       this.fileSize = Constants.INITIAL_FILE_SIZE;
+
       this.simulationSpeed = 1;
 
       this.update();
@@ -565,6 +574,21 @@ export default {
         .on("drag", dragged)
         .on("end", dragended);
     },
+    onFileSizeChange: function () {
+      // Stopping the distribution timer.
+      if (this.distributionTimer !== null) this.distributionTimer.stop();
+
+      // Removing all of the data from the nodes.
+      for (let node of this.nodesArray) {
+        node.data.clear();
+      }
+
+      this.completedNodes.clear();
+
+      this.update();
+      d3.selectAll("circle").dispatch("updateNodeColor");
+      d3.selectAll("text").dispatch("updateNodeText");
+    },
   },
 };
 </script>
@@ -573,15 +597,20 @@ export default {
 #main-container {
   text-align: center;
 }
+#logo {
+  position: absolute;
+  left: 5%;
+  top: 0;
+}
 #node-info-card {
   border: 2px solid lightgray;
   text-align: center;
   height: fit-content;
-  min-height: 40%;
+  min-height: 30%;
 }
 #slider-container {
   text-align: center;
-  width: 60%;
+  width: 50%;
 }
 .sim-speed-text {
   font-weight: normal;
